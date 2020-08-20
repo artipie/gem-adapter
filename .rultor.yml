@@ -12,11 +12,11 @@ install: |
   export LANGUAGE=en_US.UTF-8
 merge:
   script: |
-    echo We don't merge via Rultor
+    echo We don't merge via Rultor!
     exit 1
 deploy:
   script: |
-    echo There is nothing to deploy
+    echo There is nothing to deploy!
     exit 1
 release:
   script: |-
