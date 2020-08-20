@@ -383,7 +383,6 @@ class AstoIndexer
 
     if updated_gems.empty?
       say 'No new gems'
-      terminate_interaction 0
     end
 
     specs = map_gems_to_specs updated_gems

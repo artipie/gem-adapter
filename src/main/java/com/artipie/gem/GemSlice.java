@@ -25,14 +25,15 @@ package com.artipie.gem;
 
 import com.artipie.asto.Storage;
 import com.artipie.http.Slice;
+import com.artipie.http.auth.Identities;
 import com.artipie.http.rq.RqMethod;
 import com.artipie.http.rs.RsStatus;
 import com.artipie.http.rs.RsWithStatus;
 import com.artipie.http.rt.RtRule;
+import com.artipie.http.rt.RtRulePath;
 import com.artipie.http.rt.SliceRoute;
 import com.artipie.http.slice.SliceDownload;
 import com.artipie.http.slice.SliceSimple;
-import io.vertx.reactivex.core.file.FileSystem;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -62,10 +63,11 @@ public final class GemSlice extends Slice.Wrap {
      * Ctor.
      *
      * @param storage The storage.
-     * @param fs The file system.
      */
-    public GemSlice(final Storage storage, final FileSystem fs) {
-        this(storage, JavaEmbedUtils.initialize(new ArrayList<>(0)), fs);
+    public GemSlice(final Storage storage) {
+        this(storage,
+            JavaEmbedUtils.initialize(new ArrayList<>(0)),
+            Identities.ANONYMOUS);
     }
 
     /**
@@ -73,30 +75,39 @@ public final class GemSlice extends Slice.Wrap {
      *
      * @param storage The storage.
      * @param runtime The Jruby runtime.
-     * @param fs The file system.
+     * @param users The users.
      */
-    public GemSlice(final Storage storage, final Ruby runtime, final FileSystem fs) {
+    public GemSlice(final Storage storage,
+        final Ruby runtime,
+        final Identities users) {
         super(
             new SliceRoute(
-                new SliceRoute.Path(
-                    new RtRule.Multiple(
+                new RtRulePath(
+                    new RtRule.All(
                         new RtRule.ByMethod(RqMethod.POST),
                         new RtRule.ByPath("/api/v1/gems")
                     ),
-                    GemSlice.rubyLookUp("SubmitGem", storage, runtime, fs)
+                    GemSlice.rubyLookUp("SubmitGem", storage, runtime)
                 ),
-                new SliceRoute.Path(
-                    new RtRule.Multiple(
+                new RtRulePath(
+                    new RtRule.All(
+                        new RtRule.ByMethod(RqMethod.GET),
+                        new RtRule.ByPath("/api/v1/api_key")
+                    ),
+                    new ApiKeySlice(users)
+                ),
+                new RtRulePath(
+                    new RtRule.All(
                         new RtRule.ByMethod(RqMethod.GET),
                         new RtRule.ByPath(GemInfo.PATH_PATTERN)
                     ),
                     new GemInfo(storage)
                 ),
-                new SliceRoute.Path(
+                new RtRulePath(
                     new RtRule.ByMethod(RqMethod.GET),
                     new SliceDownload(storage)
                 ),
-                new SliceRoute.Path(
+                new RtRulePath(
                     RtRule.FALLBACK,
                     new SliceSimple(new RsWithStatus(RsStatus.NOT_FOUND))
                 )
@@ -109,13 +120,11 @@ public final class GemSlice extends Slice.Wrap {
      * @param rclass The name of a slice class, implemented in JRuby.
      * @param storage The storage to pass directly to Ruby instance.
      * @param runtime The JRuby runtime.
-     * @param fs The File System.
      * @return The Slice.
      */
     private static Slice rubyLookUp(final String rclass,
         final Storage storage,
-        final Ruby runtime,
-        final FileSystem fs) {
+        final Ruby runtime) {
         try {
             final RubyRuntimeAdapter evaler = JavaEmbedUtils.newRuntimeAdapter();
             final String script = IOUtils.toString(
@@ -127,7 +136,7 @@ public final class GemSlice extends Slice.Wrap {
                 runtime,
                 evaler.eval(runtime, rclass),
                 "new",
-                new Object[]{storage, fs},
+                new Object[]{storage},
                 Slice.class
             );
         } catch (final IOException exc) {

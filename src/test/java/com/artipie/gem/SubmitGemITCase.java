@@ -50,7 +50,7 @@ public class SubmitGemITCase {
         final Vertx vertx = Vertx.vertx();
         final VertxSliceServer server = new VertxSliceServer(
             vertx,
-            new GemSlice(new FileStorage(temp, vertx.fileSystem()), vertx.fileSystem())
+            new GemSlice(new FileStorage(temp))
         );
         final WebClient web = WebClient.create(vertx);
         final int port = server.start();

@@ -28,7 +28,9 @@ import com.artipie.vertx.VertxSliceServer;
 import com.jcabi.log.Logger;
 import io.vertx.reactivex.core.Vertx;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
@@ -49,12 +51,12 @@ import org.testcontainers.containers.GenericContainer;
 public class GemCliITCase {
 
     @Test
-    public void gemPushAndInstallWorks(@TempDir final Path temp)
+    public void gemPushAndInstallWorks(@TempDir final Path temp, @TempDir final Path mount)
         throws IOException, InterruptedException {
         final Vertx vertx = Vertx.vertx();
         final VertxSliceServer server = new VertxSliceServer(
             vertx,
-            new GemSlice(new FileStorage(temp, vertx.fileSystem()), vertx.fileSystem())
+            new GemSlice(new FileStorage(temp))
         );
         final int port = server.start();
         final String host = String.format("http://host.testcontainers.internal:%d", port);
@@ -62,7 +64,11 @@ public class GemCliITCase {
         final RubyContainer ruby = new RubyContainer()
             .withCommand("tail", "-f", "/dev/null")
             .withWorkingDirectory("/home/")
-            .withFileSystemBind("./src/test/resources", "/home");
+            .withFileSystemBind(mount.toAbsolutePath().toString(), "/home");
+        final Path bgem = mount.resolve("builder-3.2.4.gem");
+        final Path rgem = mount.resolve("rails-6.0.2.2.gem");
+        Files.copy(Paths.get("./src/test/resources/builder-3.2.4.gem"), bgem);
+        Files.copy(Paths.get("./src/test/resources/rails-6.0.2.2.gem"), rgem);
         ruby.start();
         MatcherAssert.assertThat(
             String.format("'gem push builder-3.2.4.gem failed with non-zero code", host),
@@ -80,11 +86,21 @@ public class GemCliITCase {
             ),
             Matchers.equalTo(0)
         );
+        Files.delete(bgem);
+        Files.delete(rgem);
         MatcherAssert.assertThat(
-            String.format("'gem install failed with non-zero code", host),
+            String.format("Unable to remove https://rubygems.org from the list of sources", host),
             this.bash(
                 ruby,
-                String.format("GEM_HOST_API_KEY=123 gem install builder --source %s", host)
+                String.format("gem sources -r https://rubygems.org/", host)
+            ),
+            Matchers.equalTo(0)
+        );
+        MatcherAssert.assertThat(
+            String.format("'gem fetch failed with non-zero code", host),
+            this.bash(
+                ruby,
+                String.format("GEM_HOST_API_KEY=123 gem fetch -V builder --source %s", host)
             ),
             Matchers.equalTo(0)
         );
