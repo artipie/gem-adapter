@@ -29,9 +29,9 @@ class SubmitGem
 
   @@log = LoggerFactory::getLogger("com.artipie.gem.SubmitGem")
 
-  def initialize(storage)
+  def initialize(storage, idxdir)
     @storage = storage
-    @idx = "temp-gem-index"
+    @idx = idxdir
     @gems = File.join(@idx, "gems")
     # Was index created before?
     idx_existed = File.exists?(@idx)

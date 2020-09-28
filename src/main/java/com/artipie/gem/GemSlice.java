@@ -39,11 +39,14 @@ import com.artipie.http.rt.RtRulePath;
 import com.artipie.http.rt.SliceRoute;
 import com.artipie.http.slice.SliceDownload;
 import com.artipie.http.slice.SliceSimple;
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.UUID;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.jruby.Ruby;
 import org.jruby.RubyRuntimeAdapter;
@@ -98,7 +101,12 @@ public final class GemSlice extends Slice.Wrap {
                         new RtRule.ByPath("/api/v1/gems")
                     ),
                     new SliceAuth(
-                        GemSlice.rubyLookUp("SubmitGem", storage, runtime),
+                        GemSlice.rubyLookUp(
+                            runtime,
+                            "SubmitGem",
+                            storage,
+                            GemSlice.tmpDir()
+                        ),
                         new Permission.ByName(permissions, Action.Standard.WRITE),
                         new GemApiKeyIdentities(auth)
                     )
@@ -135,14 +143,15 @@ public final class GemSlice extends Slice.Wrap {
 
     /**
      * Lookup an instance of slice, implemented with JRuby.
-     * @param rclass The name of a slice class, implemented in JRuby.
-     * @param storage The storage to pass directly to Ruby instance.
      * @param runtime The JRuby runtime.
+     * @param rclass The name of a slice class, implemented in JRuby.
+     * @param params The ctor params.
      * @return The Slice.
      */
-    private static Slice rubyLookUp(final String rclass,
-        final Storage storage,
-        final Ruby runtime) {
+    private static Slice rubyLookUp(
+        final Ruby runtime,
+        final String rclass,
+        final Object... params) {
         try {
             final RubyRuntimeAdapter evaler = JavaEmbedUtils.newRuntimeAdapter();
             final String script = IOUtils.toString(
@@ -154,11 +163,35 @@ public final class GemSlice extends Slice.Wrap {
                 runtime,
                 evaler.eval(runtime, rclass),
                 "new",
-                new Object[]{storage},
+                params,
                 Slice.class
             );
         } catch (final IOException exc) {
             throw new UncheckedIOException(exc);
         }
+    }
+
+    /**
+     * Temp dir, which will be removed on jvm exit.
+     * @return The dir name.
+     */
+    private static String tmpDir() {
+        final String fname = String.join(
+            "-",
+            "gem-tmp-index",
+            UUID.randomUUID().toString()
+        );
+        Runtime.getRuntime().addShutdownHook(
+            new Thread(
+                () -> {
+                    try {
+                        FileUtils.deleteDirectory(new File(fname));
+                    } catch (final IOException exc) {
+                        throw new UncheckedIOException(exc);
+                    }
+                }
+            )
+        );
+        return fname;
     }
 }
