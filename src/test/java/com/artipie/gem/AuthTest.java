@@ -74,7 +74,8 @@ public class AuthTest {
                 new InMemoryStorage(),
                 JavaEmbedUtils.initialize(new ArrayList<>(0)),
                 Permissions.FREE,
-                (lgn, pwd) -> Optional.empty()
+                (lgn, pwd) -> Optional.empty(),
+                "def"
             ).response(
                 new RequestLine("GET", "/api/v1/api_key").toString(),
                 new Headers.From(),
@@ -99,7 +100,8 @@ public class AuthTest {
                     } else {
                         return Optional.empty();
                     }
-                }
+                },
+                "default"
             ).response(
                 new RequestLine("POST", "/api/v1/gems").toString(),
                 new Headers.From(new Authorization(token)),
@@ -124,7 +126,8 @@ public class AuthTest {
                     } else {
                         return Optional.empty();
                     }
-                }
+                },
+                "default"
             ).response(
                 new RequestLine("GET", "specs.4.8").toString(),
                 new Headers.From(new Authorization(token)),

@@ -77,7 +77,8 @@ public final class GemSlice extends Slice.Wrap {
         this(storage,
             JavaEmbedUtils.initialize(new ArrayList<>(0)),
             Permissions.FREE,
-            (login, pwd) -> Optional.of(new Authentication.User("anonymous"))
+            (login, pwd) -> Optional.of(new Authentication.User("anonymous")),
+            "default"
         );
     }
 
@@ -88,11 +89,13 @@ public final class GemSlice extends Slice.Wrap {
      * @param runtime The Jruby runtime.
      * @param permissions The permissions.
      * @param auth The auth.
+     * @param repo The repo identifier.
      */
     public GemSlice(final Storage storage,
         final Ruby runtime,
         final Permissions permissions,
-        final Authentication auth) {
+        final Authentication auth,
+        final String repo) {
         super(
             new SliceRoute(
                 new RtRulePath(
@@ -105,7 +108,7 @@ public final class GemSlice extends Slice.Wrap {
                             runtime,
                             "SubmitGem",
                             storage,
-                            GemSlice.tmpDir()
+                            GemSlice.tmpDirForRepo(repo)
                         ),
                         new Permission.ByName(permissions, Action.Standard.WRITE),
                         new GemApiKeyIdentities(auth)
@@ -173,13 +176,14 @@ public final class GemSlice extends Slice.Wrap {
 
     /**
      * Temp dir, which will be removed on jvm exit.
+     * @param repo The repo identifier.
      * @return The dir name.
      */
-    private static String tmpDir() {
+    private static String tmpDirForRepo(final String repo) {
         final String fname = String.join(
             "-",
-            "gem-tmp-index",
-            UUID.randomUUID().toString()
+            repo,
+            "gem-tmp-index"
         );
         Runtime.getRuntime().addShutdownHook(
             new Thread(
