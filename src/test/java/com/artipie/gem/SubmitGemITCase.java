@@ -24,6 +24,7 @@
 package com.artipie.gem;
 
 import com.artipie.asto.fs.FileStorage;
+import com.artipie.http.auth.Permissions;
 import com.artipie.http.rs.RsStatus;
 import com.artipie.vertx.VertxSliceServer;
 import io.vertx.reactivex.core.Vertx;
@@ -33,8 +34,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Optional;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsEqual;
+import org.jruby.javasupport.JavaEmbedUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -50,7 +54,13 @@ public class SubmitGemITCase {
         final Vertx vertx = Vertx.vertx();
         final VertxSliceServer server = new VertxSliceServer(
             vertx,
-            new GemSlice(new FileStorage(temp))
+            new GemSlice(
+                new FileStorage(temp),
+                JavaEmbedUtils.initialize(new ArrayList<>(0)),
+                Permissions.FREE,
+                (lgn, pwd) -> Optional.empty(),
+                "submitResultsInOkResponse"
+            )
         );
         final WebClient web = WebClient.create(vertx);
         final int port = server.start();

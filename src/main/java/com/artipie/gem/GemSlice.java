@@ -39,13 +39,9 @@ import com.artipie.http.rt.RtRulePath;
 import com.artipie.http.rt.SliceRoute;
 import com.artipie.http.slice.SliceDownload;
 import com.artipie.http.slice.SliceSimple;
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Optional;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.jruby.Ruby;
 import org.jruby.RubyRuntimeAdapter;
@@ -66,20 +62,6 @@ import org.jruby.javasupport.JavaEmbedUtils;
  */
 @SuppressWarnings({"PMD.UnusedPrivateField", "PMD.SingularField"})
 public final class GemSlice extends Slice.Wrap {
-
-    /**
-     * Ctor.
-     *
-     * @param storage The storage.
-     */
-    public GemSlice(final Storage storage) {
-        this(storage,
-            JavaEmbedUtils.initialize(new ArrayList<>(0)),
-            Permissions.FREE,
-            (login, pwd) -> Optional.of(new Authentication.User("anonymous")),
-            "default"
-        );
-    }
 
     /**
      * Ctor.

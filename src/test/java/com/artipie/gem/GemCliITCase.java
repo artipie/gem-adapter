@@ -24,6 +24,8 @@
 package com.artipie.gem;
 
 import com.artipie.asto.fs.FileStorage;
+import com.artipie.http.auth.Authentication;
+import com.artipie.http.auth.Permissions;
 import com.artipie.vertx.VertxSliceServer;
 import com.jcabi.log.Logger;
 import io.vertx.reactivex.core.Vertx;
@@ -31,9 +33,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Optional;
 import org.cactoos.text.Base64Encoded;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
+import org.jruby.javasupport.JavaEmbedUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
@@ -59,7 +64,13 @@ public class GemCliITCase {
         final Vertx vertx = Vertx.vertx();
         final VertxSliceServer server = new VertxSliceServer(
             vertx,
-            new GemSlice(new FileStorage(temp))
+            new GemSlice(
+                new FileStorage(temp),
+                JavaEmbedUtils.initialize(new ArrayList<>(0)),
+                Permissions.FREE,
+                (login, pwd) -> Optional.of(new Authentication.User("anonymous")),
+                "gemPushAndInstallWorks"
+            )
         );
         final int port = server.start();
         final String host = String.format("http://host.testcontainers.internal:%d", port);

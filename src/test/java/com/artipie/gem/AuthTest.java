@@ -59,7 +59,13 @@ public class AuthTest {
             new Authorization(String.format("Basic %s", token))
         );
         MatcherAssert.assertThat(
-            new GemSlice(new InMemoryStorage()).response(
+            new GemSlice(
+                new InMemoryStorage(),
+                JavaEmbedUtils.initialize(new ArrayList<>(0)),
+                Permissions.FREE,
+                (login, pwd) -> Optional.of(new Authentication.User("anonymous")),
+                "keyIsReturned"
+            ).response(
                 new RequestLine("GET", "/api/v1/api_key").toString(),
                 headers,
                 Flowable.empty()
@@ -75,7 +81,7 @@ public class AuthTest {
                 JavaEmbedUtils.initialize(new ArrayList<>(0)),
                 Permissions.FREE,
                 (lgn, pwd) -> Optional.empty(),
-                "def"
+                "unauthorizedWhenNoIdentity"
             ).response(
                 new RequestLine("GET", "/api/v1/api_key").toString(),
                 new Headers.From(),
@@ -101,7 +107,7 @@ public class AuthTest {
                         return Optional.empty();
                     }
                 },
-                "default"
+                "notAllowedToPushUsersAreRejected"
             ).response(
                 new RequestLine("POST", "/api/v1/gems").toString(),
                 new Headers.From(new Authorization(token)),
@@ -127,7 +133,7 @@ public class AuthTest {
                         return Optional.empty();
                     }
                 },
-                "default"
+                "notAllowedToInstallsUsersAreRejected"
             ).response(
                 new RequestLine("GET", "specs.4.8").toString(),
                 new Headers.From(new Authorization(token)),
