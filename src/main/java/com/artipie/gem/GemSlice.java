@@ -185,17 +185,6 @@ public final class GemSlice extends Slice.Wrap {
             repo,
             "gem-tmp-index"
         );
-        Runtime.getRuntime().addShutdownHook(
-            new Thread(
-                () -> {
-                    try {
-                        FileUtils.deleteDirectory(new File(fname));
-                    } catch (final IOException exc) {
-                        throw new UncheckedIOException(exc);
-                    }
-                }
-            )
-        );
         return fname;
     }
 }
