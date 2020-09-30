@@ -54,7 +54,7 @@ import org.testcontainers.containers.GenericContainer;
  * @checkstyle StringLiteralsConcatenationCheck (500 lines)
  * @checkstyle ExecutableStatementCountCheck (500 lines)
  */
-@SuppressWarnings("PMD.SystemPrintln")
+@SuppressWarnings({"PMD.ExcessiveMethodLength", "PMD.AvoidDuplicateLiterals"})
 @DisabledIfSystemProperty(named = "os.name", matches = "Windows.*")
 public class GemCliITCase {
 
