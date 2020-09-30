@@ -58,23 +58,39 @@ import org.testcontainers.containers.GenericContainer;
 public class GemCliITCase {
 
     @Test
-    public void gemPushAndInstallWorks(@TempDir final Path temp, @TempDir final Path mount)
+    public void gemPushAndInstallWorks(@TempDir final Path temp)
         throws IOException, InterruptedException {
+        final Path tempf = Files.createDirectories(temp.resolve("tempf"));
+        final Path temps = Files.createDirectories(temp.resolve("temps"));
+        final Path mount = Files.createDirectories(temp.resolve("mount"));
         final String key = new Base64Encoded("usr:pwd").asString();
         final Vertx vertx = Vertx.vertx();
-        final VertxSliceServer server = new VertxSliceServer(
+        final VertxSliceServer first = new VertxSliceServer(
             vertx,
             new GemSlice(
-                new FileStorage(temp),
+                new FileStorage(tempf),
                 JavaEmbedUtils.initialize(new ArrayList<>(0)),
                 Permissions.FREE,
                 (login, pwd) -> Optional.of(new Authentication.User("anonymous")),
-                "gemPushAndInstallWorks"
+                "first"
             )
         );
-        final int port = server.start();
-        final String host = String.format("http://host.testcontainers.internal:%d", port);
-        Testcontainers.exposeHostPorts(port);
+        final VertxSliceServer second = new VertxSliceServer(
+            vertx,
+            new GemSlice(
+                new FileStorage(temps),
+                JavaEmbedUtils.initialize(new ArrayList<>(0)),
+                Permissions.FREE,
+                (login, pwd) -> Optional.of(new Authentication.User("anonymous")),
+                "second"
+            )
+        );
+        final int fport = first.start();
+        final int sport = second.start();
+        final String hostf = String.format("http://host.testcontainers.internal:%d", fport);
+        final String hosts = String.format("http://host.testcontainers.internal:%d", sport);
+        Testcontainers.exposeHostPorts(fport);
+        Testcontainers.exposeHostPorts(sport);
         final RubyContainer ruby = new RubyContainer()
             .withCommand("tail", "-f", "/dev/null")
             .withWorkingDirectory("/home/")
@@ -85,41 +101,61 @@ public class GemCliITCase {
         Files.copy(Paths.get("./src/test/resources/rails-6.0.2.2.gem"), rgem);
         ruby.start();
         MatcherAssert.assertThat(
-            String.format("'gem push builder-3.2.4.gem failed with non-zero code", host),
+            String.format("'gem push builder-3.2.4.gem failed with non-zero code", hostf),
             this.bash(
                 ruby,
-                String.format("GEM_HOST_API_KEY=%s gem push builder-3.2.4.gem --host %s", key, host)
+                String.format("GEM_HOST_API_KEY=%s gem push builder-3.2.4.gem --host %s", key, hostf)
             ),
             Matchers.equalTo(0)
         );
         MatcherAssert.assertThat(
-            String.format("'gem push rails-6.0.2.2.gem failed with non-zero code", host),
+            String.format("'gem push rails-6.0.2.2.gem failed with non-zero code", hostf),
             this.bash(
                 ruby,
-                String.format("GEM_HOST_API_KEY=%s gem push rails-6.0.2.2.gem --host %s", key, host)
+                String.format("GEM_HOST_API_KEY=%s gem push rails-6.0.2.2.gem --host %s", key, hostf)
+            ),
+            Matchers.equalTo(0)
+        );
+        MatcherAssert.assertThat(
+            String.format("'gem push rails-6.0.2.2.gem failed with non-zero code", hostf),
+            this.bash(
+                ruby,
+                String.format("GEM_HOST_API_KEY=%s gem push builder-3.2.4.gem --host %s", key, hosts)
             ),
             Matchers.equalTo(0)
         );
         Files.delete(bgem);
         Files.delete(rgem);
         MatcherAssert.assertThat(
-            String.format("Unable to remove https://rubygems.org from the list of sources", host),
+            String.format("Unable to remove https://rubygems.org from the list of sources", hostf),
             this.bash(
                 ruby,
-                String.format("gem sources -r https://rubygems.org/", host)
+                String.format("gem sources -r https://rubygems.org/", hostf)
             ),
             Matchers.equalTo(0)
         );
         MatcherAssert.assertThat(
-            String.format("'gem fetch failed with non-zero code", host),
+            String.format("'gem fetch failed with non-zero code", hostf),
             this.bash(
                 ruby,
-                String.format("GEM_HOST_API_KEY=%s gem fetch -V builder --source %s", key, host)
+                String.format("GEM_HOST_API_KEY=%s gem fetch -V builder --source %s", key, hostf)
+            ),
+            Matchers.equalTo(0)
+        );
+        MatcherAssert.assertThat(
+            String.format(
+                "'gem fetch should fail, since builder was not pushed to the second repo",
+                hostf
+            ),
+            this.bash(
+                ruby,
+                String.format("GEM_HOST_API_KEY=%s gem fetch -V builder --source %s", key, hosts)
             ),
             Matchers.equalTo(0)
         );
         ruby.stop();
-        server.close();
+        first.close();
+        second.close();
         vertx.close();
     }
 
