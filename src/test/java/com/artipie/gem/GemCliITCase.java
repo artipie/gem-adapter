@@ -39,6 +39,7 @@ import org.cactoos.text.Base64Encoded;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.jruby.javasupport.JavaEmbedUtils;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
@@ -104,7 +105,11 @@ public class GemCliITCase {
             String.format("'gem push builder-3.2.4.gem failed with non-zero code", hostf),
             this.bash(
                 ruby,
-                String.format("GEM_HOST_API_KEY=%s gem push builder-3.2.4.gem --host %s", key, hostf)
+                String.format(
+                    "GEM_HOST_API_KEY=%s gem push builder-3.2.4.gem --host %s",
+                    key,
+                    hostf
+                )
             ),
             Matchers.equalTo(0)
         );
@@ -112,7 +117,11 @@ public class GemCliITCase {
             String.format("'gem push rails-6.0.2.2.gem failed with non-zero code", hostf),
             this.bash(
                 ruby,
-                String.format("GEM_HOST_API_KEY=%s gem push rails-6.0.2.2.gem --host %s", key, hostf)
+                String.format(
+                    "GEM_HOST_API_KEY=%s gem push rails-6.0.2.2.gem --host %s",
+                    key,
+                    hostf
+                )
             ),
             Matchers.equalTo(0)
         );
@@ -120,7 +129,11 @@ public class GemCliITCase {
             String.format("'gem push rails-6.0.2.2.gem failed with non-zero code", hostf),
             this.bash(
                 ruby,
-                String.format("GEM_HOST_API_KEY=%s gem push builder-3.2.4.gem --host %s", key, hosts)
+                String.format(
+                    "GEM_HOST_API_KEY=%s gem push rails-6.0.2.2.gem --host %s",
+                    key,
+                    hosts
+                )
             ),
             Matchers.equalTo(0)
         );
@@ -142,16 +155,16 @@ public class GemCliITCase {
             ),
             Matchers.equalTo(0)
         );
-        MatcherAssert.assertThat(
-            String.format(
-                "'gem fetch should fail, since builder was not pushed to the second repo",
-                hostf
-            ),
-            this.bash(
+        Assertions.assertThrows(
+            IllegalStateException.class,
+            () -> this.bash(
                 ruby,
                 String.format("GEM_HOST_API_KEY=%s gem fetch -V builder --source %s", key, hosts)
             ),
-            Matchers.equalTo(0)
+            String.format(
+                "'gem fetch should fail, since builder was not pushed to the second repo",
+                hostf
+            )
         );
         ruby.stop();
         first.close();

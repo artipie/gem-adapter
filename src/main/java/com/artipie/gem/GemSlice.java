@@ -156,7 +156,7 @@ public final class GemSlice extends Slice.Wrap {
     }
 
     /**
-     * Temp dir, which will be removed on jvm exit.
+     * Temp dir for index generation.
      * @param repo The repo identifier.
      * @return The dir name.
      */
