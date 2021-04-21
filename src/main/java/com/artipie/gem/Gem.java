@@ -27,7 +27,7 @@ import com.artipie.asto.Key;
 import com.artipie.asto.Storage;
 import com.artipie.asto.SubStorage;
 import com.artipie.asto.fs.FileStorage;
-import hu.akarnokd.rxjava2.interop.SingleInterop;
+import hu.akarnokd.rxjava2.interop.CompletableInterop;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import java.io.File;
@@ -35,56 +35,61 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.apache.commons.io.FileUtils;
-import org.jruby.Ruby;
-import org.jruby.RubyRuntimeAdapter;
-import org.jruby.javasupport.JavaEmbedUtils;
 
 /**
  * An SDK, which servers gem packages.
  * <p>
- * Initialize on first request.
- * Currently, Ruby runtime initialization and Slice evaluation is happening during the GemSlice
- * construction. Instead, the Ruby runtime initialization and Slice evaluation should happen
- * on first request.
- *
+ * Performes gem index update using specified indexer implementation.
+ * </p>
  * @since 1.0
- * @checkstyle ClassDataAbstractionCouplingCheck (500 lines)
- * @checkstyle ParameterNumberCheck (500 lines)
  */
 public final class Gem {
-    /**
-     * Primary evaler.
-     */
-    static final RubyRuntimeAdapter EVALER = JavaEmbedUtils.newRuntimeAdapter();
 
     /**
-     * Primary runtime.
+     * Gem indexer shared instance cache.
      */
-    static final Ruby RUNTIME = JavaEmbedUtils.initialize(new ArrayList<>(0));
+    private final AtomicReference<GemIndex> cache;
 
     /**
-     * Main storage.
+     * Gem repository storage.
      */
     private final Storage storage;
 
     /**
-     * Ctor.
-     *
-     * @param storage The storage.
+     * Gem indexer supplier.
+     */
+    private final Supplier<GemIndex> indexer;
+
+    /**
+     * New Gem SDK with default indexer.
+     * @param storage Repository storage.
      */
     Gem(final Storage storage) {
+        this(storage, () -> RubyGemIndex.createNew());
+    }
+
+    /**
+     * New Gem SDK.
+     *
+     * @param storage Repository storage.
+     * @param indexer Gem indexer supplier
+     */
+    Gem(final Storage storage, final Supplier<GemIndex> indexer) {
         this.storage = storage;
+        this.indexer = indexer;
+        this.cache = new AtomicReference<>();
     }
 
     /**
      * Batch update Ruby gems for repository.
      *
-     * @param prefix Key used Substorage
+     * @param prefix Location of repository
      * @return Completable action
      */
     public CompletionStage<Void> batchUpdate(final Key prefix) {
@@ -96,51 +101,18 @@ public final class Gem {
                 } catch (final IOException exc) {
                     throw new UncheckedIOException(exc);
                 }
-            }).thenCompose(
-                tmpdir -> {
-                    final FileStorage local = new FileStorage(tmpdir);
-                    return Single.fromFuture(remote.list(Key.ROOT))
-                        .flatMapObservable(Observable::fromIterable)
-                        .flatMapSingle(
-                            key -> Single.fromFuture(
-                                remote.value(key)
-                                .thenCompose(content -> local.save(key, content))
-                                .thenApply(none -> true)
-                            )
-                        ).toList().map(ignore -> true).to(SingleInterop.get())
-                        .thenApply(ignore -> tmpdir);
-                })
-            .thenCompose(
-                tmpdir -> CompletableFuture.runAsync(
-                    () -> rubyUpdater(tmpdir.toString())
-                ).thenApply(ignore -> tmpdir)
-            )
-            .thenCompose(
-                tmpdir -> {
-                    final FileStorage local = new FileStorage(tmpdir);
-                    return Single.fromFuture(local.list(Key.ROOT))
-                        .flatMapObservable(Observable::fromIterable)
-                        .flatMapSingle(
-                            key -> Single.fromFuture(
-                                local.value(key)
-                                    .thenCompose(content -> remote.save(key, content))
-                                    .thenApply(none -> true)
-                            )
-                        ).toList().map(ignore -> true).to(SingleInterop.get())
-                        .thenApply(ignore -> tmpdir); }
-            )
-            .handle(Gem::removeTempDir);
-    }
-
-    /**
-     * Create indexes for given gem in target folder.
-     *
-     * @param repo The temp repo path.
-     */
-    static void rubyUpdater(final String repo) {
-        final String script = "require 'rubygems/indexer.rb'\n Gem::Indexer.new(\""
-            .concat(repo).concat("\",{ build_modern:true }).generate_index");
-        Gem.EVALER.eval(Gem.RUNTIME, script);
+            }
+        ).thenCompose(
+            tmpdir -> Gem.copyStorage(remote, new FileStorage(tmpdir))
+                .thenApply(ignore -> tmpdir)
+        ).thenCompose(
+            tmpdir -> this.sharedIndexer()
+                .thenAccept(idx -> idx.update(tmpdir))
+                .thenApply(ignore -> tmpdir)
+        ).thenCompose(
+            tmpdir -> Gem.copyStorage(new FileStorage(tmpdir), remote)
+                .thenApply(ignore -> tmpdir)
+        ).handle(Gem::removeTempDir);
     }
 
     /**
@@ -159,5 +131,41 @@ public final class Gem {
             throw new CompletionException(err);
         }
         return null;
+    }
+
+    /**
+     * Copy storage from src to dst.
+     * @param src Source storage
+     * @param dst Destination storage
+     * @return Async result
+     */
+    private static CompletionStage<Void> copyStorage(final Storage src, final Storage dst) {
+        return Single.fromFuture(src.list(Key.ROOT))
+            .flatMapObservable(Observable::fromIterable)
+            .flatMapSingle(
+                key -> Single.fromFuture(
+                    src.value(key)
+                        .thenCompose(content -> dst.save(key, content))
+                        .thenApply(none -> true)
+                )
+            ).ignoreElements().to(CompletableInterop.await());
+    }
+
+    /**
+     * Get shared ruby indexer instance.
+     * @return Async result with gem index
+     * @checkstyle ReturnCountCheck (15 lines)
+     */
+    private CompletionStage<GemIndex> sharedIndexer() {
+        return CompletableFuture.supplyAsync(
+            () -> this.cache.updateAndGet(
+                value -> {
+                    if (value == null) {
+                        return new GemIndex.Synchronized(this.indexer.get());
+                    }
+                    return value;
+                }
+            )
+        );
     }
 }
