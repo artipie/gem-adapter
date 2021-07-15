@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.artipie.gem;
+package com.artipie.gem.http;
 
 import com.artipie.http.Response;
 import com.artipie.http.Slice;

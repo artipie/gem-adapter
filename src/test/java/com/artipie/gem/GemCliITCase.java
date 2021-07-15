@@ -24,6 +24,7 @@
 package com.artipie.gem;
 
 import com.artipie.asto.fs.FileStorage;
+import com.artipie.gem.http.GemSlice;
 import com.artipie.vertx.VertxSliceServer;
 import com.jcabi.log.Logger;
 import io.vertx.reactivex.core.Vertx;
@@ -112,6 +113,7 @@ public class GemCliITCase {
             Matchers.equalTo(0)
         );
         ruby.stop();
+        ruby.close();
         server.close();
         vertx.close();
     }

@@ -21,9 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.artipie.gem;
+package com.artipie.gem.http;
 
 import com.artipie.asto.Storage;
+import com.artipie.gem.GemApiKeyAuth;
 import com.artipie.http.Slice;
 import com.artipie.http.auth.Action;
 import com.artipie.http.auth.AuthSlice;
@@ -82,7 +83,7 @@ public final class GemSlice extends Slice.Wrap {
                         new RtRule.ByPath("/api/v1/gems")
                     ),
                     new AuthSlice(
-                        new SubmitGem(storage, new Gem(storage)),
+                        new SubmitGemSlice(storage),
                         new GemApiKeyAuth(auth),
                         new Permission.ByName(permissions, Action.Standard.WRITE)
                     )
@@ -97,9 +98,9 @@ public final class GemSlice extends Slice.Wrap {
                 new RtRulePath(
                     new RtRule.All(
                         new ByMethodsRule(RqMethod.GET),
-                        new RtRule.ByPath(GemInfo.PATH_PATTERN)
+                        new RtRule.ByPath(ApiGetSlice.PATH_PATTERN)
                     ),
-                    new GemInfo(storage)
+                    new ApiGetSlice(storage)
                 ),
                 new RtRulePath(
                     new ByMethodsRule(RqMethod.GET),

@@ -25,17 +25,50 @@
 package com.artipie.gem;
 
 import java.nio.file.Path;
+import java.util.Map;
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
 
 /**
- * Gem repository index.
- *
+ * Gem metadata parser.
  * @since 1.0
  */
-public interface GemIndex {
+public interface GemMeta {
 
     /**
-     * Update index.
-     * @param path Repository index path
+     * Json Gem info format.
      */
-    void update(Path path);
+    InfoFormat<JsonObject> FMT_JSON = data -> {
+        final JsonObjectBuilder builder = Json.createObjectBuilder();
+        for (final Map.Entry<String, String> entry : data.entrySet()) {
+            builder.add(entry.getKey(), entry.getValue());
+        }
+        return builder.build();
+    };
+
+    /**
+     * Extract Gem info.
+     * @param gem Path to gem
+     * @param format Info format
+     * @param <T> Format type
+     * @return JSON object
+     */
+    <T> T info(Path gem, InfoFormat<T> format);
+
+    /**
+     * Gem info format.
+     * @param <T> Format type
+     * @since 1.0
+     */
+    @FunctionalInterface
+    interface InfoFormat<T> {
+
+        /**
+         * Print Gem info representation to required format.
+         * @param data Gem info data
+         * @return Formatted info
+         */
+        T print(Map<String, String> data);
+    }
 }

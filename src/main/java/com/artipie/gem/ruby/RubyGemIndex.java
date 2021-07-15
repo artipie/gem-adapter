@@ -22,20 +22,44 @@
  * SOFTWARE.
  */
 
-package com.artipie.gem;
+package com.artipie.gem.ruby;
 
+import com.artipie.gem.GemIndex;
 import java.nio.file.Path;
+import org.jruby.Ruby;
+import org.jruby.RubyRuntimeAdapter;
+import org.jruby.javasupport.JavaEmbedUtils;
 
 /**
- * Gem repository index.
+ * Ruby runtime gem index implementation.
  *
  * @since 1.0
  */
-public interface GemIndex {
+public final class RubyGemIndex implements GemIndex {
 
     /**
-     * Update index.
-     * @param path Repository index path
+     * Ruby runtime.
      */
-    void update(Path path);
+    private final Ruby ruby;
+
+    /**
+     * New gem indexer.
+     * @param ruby Runtime
+     */
+    public RubyGemIndex(final Ruby ruby) {
+        this.ruby = ruby;
+    }
+
+    @Override
+    public void update(final Path path) {
+        final RubyRuntimeAdapter adapter = JavaEmbedUtils.newRuntimeAdapter();
+        adapter.eval(this.ruby, "require 'rubygems/indexer.rb'");
+        adapter.eval(
+            this.ruby,
+            String.format(
+                "Gem::Indexer.new('%s', {build_modern:true}).generate_index",
+                path.toAbsolutePath().toString()
+            )
+        );
+    }
 }

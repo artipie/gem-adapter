@@ -22,20 +22,8 @@
  * SOFTWARE.
  */
 
-package com.artipie.gem;
-
-import java.nio.file.Path;
-
 /**
- * Gem repository index.
- *
+ * JRuby implementation of API interfaces.
  * @since 1.0
  */
-public interface GemIndex {
-
-    /**
-     * Update index.
-     * @param path Repository index path
-     */
-    void update(Path path);
-}
+package com.artipie.gem.ruby;

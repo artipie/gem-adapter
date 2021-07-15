@@ -25,6 +25,7 @@ package com.artipie.gem;
 
 import com.artipie.asto.memory.InMemoryStorage;
 import com.artipie.asto.test.TestResource;
+import com.artipie.gem.http.GemSlice;
 import com.artipie.http.Headers;
 import com.artipie.http.Response;
 import com.artipie.http.auth.Authentication;

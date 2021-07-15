@@ -21,52 +21,61 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.artipie.gem;
+package com.artipie.gem.http;
 
+import com.artipie.asto.fs.FileStorage;
+import com.artipie.http.Headers;
+import com.artipie.http.hm.IsJson;
+import com.artipie.http.hm.RsHasBody;
+import com.artipie.http.hm.SliceHasResponse;
+import com.artipie.http.rq.RequestLine;
+import com.artipie.http.rq.RqMethod;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Collections;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
-import org.jruby.javasupport.JavaEmbedUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import wtf.g4s8.hamcrest.json.JsonHas;
 import wtf.g4s8.hamcrest.json.JsonValueIs;
 
 /**
- * A test for extract JSON info from gem .
+ * A test for gem submit operation.
  *
- * @since 1.0
+ * @since 0.7
+ * @checkstyle ClassDataAbstractionCouplingCheck (500 lines)
  */
-public class RubyObjJsonTest {
+final class ApiGetSliceTest {
 
     @Test
-    public void createJsonByPath(@TempDir final Path tmp) throws IOException {
-        final String builderstr = "gviz-0.3.5.gem";
-        final String gemattr = "homepage";
-        final String attrval = "https://github.com/melborne/Gviz";
-        final Path target = tmp.resolve(builderstr);
-        try (InputStream is = this.getClass().getResourceAsStream("/".concat(builderstr));
+    public void queryResultsInOkResponse(@TempDir final Path tmp) throws IOException {
+        final Path target = tmp.resolve("gviz-0.3.5.gem");
+        try (InputStream is = this.getClass().getResourceAsStream("/gviz-0.3.5.gem");
             OutputStream os = Files.newOutputStream(target)) {
             IOUtils.copy(is, os);
         }
         MatcherAssert.assertThat(
-            new RubyObjJson(
-                JavaEmbedUtils.newRuntimeAdapter(),
-                JavaEmbedUtils.initialize(Collections.emptyList())
-            ).createJson(Paths.get(tmp.toString(), builderstr)),
-            Matchers.allOf(
-                new JsonHas(
-                    gemattr,
-                    new JsonValueIs(attrval)
-                )
+            new ApiGetSlice(new FileStorage(tmp)),
+            new SliceHasResponse(
+                Matchers.allOf(
+                    new RsHasBody(
+                        new IsJson(
+                            new JsonHas(
+                                "homepage",
+                                new JsonValueIs("https://github.com/melborne/Gviz")
+                            )
+                        )
+                    )
+                ),
+                new RequestLine(RqMethod.GET, "/api/v1/gems/gviz.json"),
+                Headers.EMPTY,
+                com.artipie.asto.Content.EMPTY
             )
         );
     }
 }
+

@@ -21,35 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.artipie.gem;
-
-import io.reactivex.Flowable;
-import java.nio.ByteBuffer;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.core.IsEqual;
-import org.junit.jupiter.api.Test;
-import org.reactivestreams.Publisher;
 
 /**
- * A test for {@link ByteFlowIntoStringConversion}.
- *
- * @since 0.2
+ * Gem repository HTTP layer.
+ * @since 1.0
  */
-@SuppressWarnings("PMD.AvoidDuplicateLiterals")
-public class ByteFlowIntoStringConversionTest {
-
-    @Test
-    public void simple() {
-        final Publisher<ByteBuffer> flow = Flowable.fromArray(
-            ByteBuffer.wrap("123".getBytes()),
-            ByteBuffer.wrap("\n".getBytes()),
-            ByteBuffer.wrap("123".getBytes()),
-            ByteBuffer.wrap("\n".getBytes()),
-            ByteBuffer.wrap("123".getBytes())
-        );
-        MatcherAssert.assertThat(
-            new ByteFlowIntoStringConversion(flow).string().blockingGet(),
-            new IsEqual<>("123\n123\n123")
-        );
-    }
-}
+package com.artipie.gem.http;

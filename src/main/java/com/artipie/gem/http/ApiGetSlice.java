@@ -21,67 +21,63 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.artipie.gem;
+package com.artipie.gem.http;
 
-import com.artipie.asto.Key;
 import com.artipie.asto.Storage;
+import com.artipie.gem.Gem;
+import com.artipie.gem.GemMeta;
 import com.artipie.http.Response;
 import com.artipie.http.Slice;
 import com.artipie.http.async.AsyncResponse;
-import com.artipie.http.rs.RsStatus;
-import com.artipie.http.rs.RsWithStatus;
-import com.artipie.http.slice.ContentWithSize;
+import com.artipie.http.rq.RequestLineFrom;
+import com.artipie.http.rs.common.RsJson;
 import java.nio.ByteBuffer;
-import java.util.Map.Entry;
-import java.util.UUID;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.reactivestreams.Publisher;
 
 /**
- * A slice, which servers gem packages.
+ * Returns some basic information about the given gem.
+ * <p>
+ * Handle {@code GET - /api/v1/gems/[GEM NAME].(json|yaml)}
+ * requests, see
+ * <a href="https://guides.rubygems.org/rubygems-org-api">RubyGems API</a>
+ * for documentation.
+ * </p>
  *
- * @since 1.0
+ * @since 0.2
  */
-public final class SubmitGem implements Slice {
-    /**
-     * Gem repository storage.
-     */
-    private final Storage storage;
+public final class ApiGetSlice implements Slice {
 
     /**
-     * Origin gem index instance.
+     * Endpoint path pattern.
      */
-    private final Gem gem;
+    public static final Pattern PATH_PATTERN = Pattern.compile("/api/v1/gems/([\\w]+).(json|yml)");
 
     /**
-     * Ctor.
-     *
-     * @param storage The storage.
-     * @param gem The gem.
+     * Gem SDK.
      */
-    public SubmitGem(final Storage storage, final Gem gem) {
-        this.storage = storage;
-        this.gem = gem;
+    private final Gem sdk;
+
+    /**
+     * New slice for handling Get API requests.
+     * @param storage Gems storage
+     */
+    public ApiGetSlice(final Storage storage) {
+        this.sdk = new Gem(storage);
     }
 
-    /**
-     * Save attached gem file into storage.
-     * Create metadata for newly saved gem.
-     * Return OK result.
-     *
-     * @param line Request URI.
-     * @param headers Request headers.
-     * @param body Request body, attached file.
-     * @return The Slice
-     */
-    public Response response(final String line, final Iterable<Entry<String, String>> headers,
+    @Override
+    public Response response(final String line,
+        final Iterable<Map.Entry<String, String>> headers,
         final Publisher<ByteBuffer> body) {
-        final String gemstr = UUID.randomUUID().toString().replace("-", "").concat(".gem");
-        final Key folder = new Key.From("gems", gemstr);
+        final Matcher matcher = PATH_PATTERN.matcher(new RequestLineFrom(line).uri().toString());
+        if (!matcher.find()) {
+            throw new IllegalStateException("Invalid routing schema");
+        }
         return new AsyncResponse(
-            this.storage.save(
-                folder, new ContentWithSize(body, headers)
-            ).thenCompose(none -> this.gem.batchUpdate(folder))
-                .thenApply(none -> new RsWithStatus(RsStatus.CREATED))
+            this.sdk.info(matcher.group(1), GemMeta.FMT_JSON).thenApply(json -> new RsJson(json))
         );
     }
 }

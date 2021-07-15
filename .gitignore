@@ -6,3 +6,4 @@ lib/.classpath
 .project
 .settings/**
 .classpath
+lib/*

@@ -24,6 +24,7 @@
 package com.artipie.gem;
 
 import com.artipie.asto.fs.FileStorage;
+import com.artipie.gem.http.GemSlice;
 import com.artipie.http.rs.RsStatus;
 import com.artipie.vertx.VertxSliceServer;
 import io.vertx.reactivex.core.Vertx;

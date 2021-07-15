@@ -66,7 +66,7 @@ public class GemITCase {
             IOUtils.copy(is, os);
         }
         final Gem gem = new Gem(new FileStorage(repo));
-        gem.batchUpdate(new Key.From(gemstr, builderstr)).toCompletableFuture().join();
+        gem.update(new Key.From(gemstr, builderstr)).toCompletableFuture().join();
         final List<String> files = Files.walk(repo).map(Path::toString)
             .collect(Collectors.toList());
         MatcherAssert.assertThat(
