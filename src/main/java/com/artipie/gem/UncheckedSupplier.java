@@ -32,6 +32,9 @@ import java.util.function.Supplier;
  * with unchecked one.
  * @param <T> Supplier type
  * @since 1.0
+ * @todo #85:30min Move this class to artipie/asto repo
+ *  This class was created due to lack of unchecked supplier
+ *  implementation in asto project. Let's move it to asto repo.
  */
 public final class UncheckedSupplier<T> implements Supplier<T> {
 
