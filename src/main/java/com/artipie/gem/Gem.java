@@ -99,7 +99,12 @@ public final class Gem {
                 .thenApply(ignore -> tmp)
         ).thenCompose(
             tmp -> this.shared.apply(RubyGemIndex::new)
-                .thenAccept(index -> index.update(tmp))
+                .thenAccept(
+                    index -> {
+                        final Path dir = Paths.get(tmp.toString(), gem.string());
+                        index.rename(dir);
+                        index.update(tmp);
+                    })
                 .thenCompose(none -> new Copy(new FileStorage(tmp)).copy(this.storage))
                 .handle(removeTempDir(tmp))
         );
